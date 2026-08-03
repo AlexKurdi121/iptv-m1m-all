@@ -506,7 +506,7 @@ export default function Home() {
               isDarkMode ? 'border-gray-800 bg-gray-900/50' : 'border-gray-200 bg-gray-50'
             }`}>
               <span className={`text-xs truncate max-w-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Stream URL: {selectedChannel.streamUrl}
+                
               </span>
               <div className="flex gap-2">
                 <button
