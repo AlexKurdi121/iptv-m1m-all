@@ -298,7 +298,7 @@ export default function Home() {
       <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-800'}`}>
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-14 w-14 border-4 border-blue-500 border-t-transparent"></div>
-          <p className="mt-4 font-medium text-sm">Loading channels from database...</p>
+          <p className="mt-4 font-medium text-sm">Loading channels...</p>
         </div>
       </div>
     );
