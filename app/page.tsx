@@ -31,6 +31,9 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isTV, setIsTV] = useState(false);
+  
+  // NEW: State to track online users count
+  const [onlineUsersCount, setOnlineUsersCount] = useState<number>(1);
 
   // Detect Smart TV Environment
   useEffect(() => {
@@ -45,6 +48,35 @@ export default function Home() {
       userAgent.includes('samsung');
 
     setIsTV(isSmartTV);
+  }, []);
+
+  // NEW: Track Online Users via Supabase Presence
+  useEffect(() => {
+    const room = supabase.channel('online_users_room', {
+      config: {
+        presence: {
+          key: crypto.randomUUID(), // Unique identifier for this browser tab/session
+        },
+      },
+    });
+
+    room
+      .on('presence', { event: 'sync' }, () => {
+        const state = room.presenceState();
+        // Count how many unique sessions are currently registered in the room
+        const totalUsers = Object.keys(state).length;
+        setOnlineUsersCount(totalUsers > 0 ? totalUsers : 1);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          // Track this user's presence entry
+          await room.track({ online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(room);
+    };
   }, []);
 
   // Fetch Channels from Supabase
@@ -152,7 +184,6 @@ export default function Home() {
       hlsRef.current = null;
     }
 
-    // Proxy URL to bypass CORS issues (falls back to direct URL on failure if needed)
     const proxiedUrl = `/api/hls?url=${encodeURIComponent(rawStreamUrl)}`;
     const streamUrl = isTV ? rawStreamUrl : proxiedUrl;
 
@@ -167,7 +198,6 @@ export default function Home() {
       }
     };
 
-    // Native HLS Support (Safari / WebOS / Tizen)
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = rawStreamUrl;
       video.onloadedmetadata = () => {
@@ -185,7 +215,6 @@ export default function Home() {
       return;
     }
 
-    // HLS.js Support
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
@@ -301,19 +330,35 @@ export default function Home() {
             </div>
           </div>
 
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2.5 rounded-xl transition-all ${
-              isDarkMode ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {isDarkMode ? '🌞' : '🌙'}
-          </button>
+          <div className="flex items-center gap-3">
+            {/* NEW: Online Users Badge */}
+            <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium ${
+              isDarkMode ? 'bg-gray-900 border-gray-800 text-gray-300' : 'bg-white border-gray-200 text-gray-700 shadow-sm'
+            }`}>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span><strong>{onlineUsersCount}</strong> online</span>
+            </div>
+
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`p-2.5 rounded-xl transition-all ${
+                isDarkMode ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {isDarkMode ? '🌞' : '🌙'}
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Mobile Online Users Counter */}
+        <div className="sm:hidden mb-4 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium bg-gray-900 border-gray-800 text-gray-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span><strong>{onlineUsersCount}</strong> users online right now</span>
+        </div>
+
         {/* Error Alert */}
         {error && !showModal && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
@@ -379,7 +424,6 @@ export default function Home() {
                   src={channel.icon}
                   alt={channel.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
 
@@ -505,9 +549,7 @@ export default function Home() {
             <div className={`px-6 py-4 flex items-center justify-between border-t ${
               isDarkMode ? 'border-gray-800 bg-gray-900/50' : 'border-gray-200 bg-gray-50'
             }`}>
-              <span className={`text-xs truncate max-w-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                
-              </span>
+              <span className={`text-xs truncate max-w-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}></span>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
